@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>筋トレログ</title>
+
+<style>
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
+    background: #000;
+    color: #fff;
+  }
+
+  .container {
+    padding: 16px;
+    max-width: 520px;
+    margin: auto;
+    padding-bottom: 80px;
+  }
+
+  h1 {
+    text-align: center;
+    color: #ff1f1f;
+    margin: 16px 0 20px;
+    letter-spacing: 1px;
+  }
+
+  .card {
+    background: #111;
+    border: 1px solid #333;
+    border-radius: 14px;
+    padding: 14px;
+    margin-bottom: 16px;
+  }
+
+  label {
+    display: block;
+    font-size: 13px;
+    color: #ccc;
+    margin-top: 10px;
+    margin-bottom: 4px;
+  }
+
+  input, select {
+    width: 100%;
+    padding: 13px;
+    border-radius: 10px;
+    border: none;
+    font-size: 16px;
+    background: #fff;
+    color: #000;
+  }
+
+  .row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  button {
+    width: 100%;
+    padding: 14px;
+    border: none;
+    border-radius: 12px;
+    font-size: 17px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+
+  .save-btn {
+    background: #007bff;
+    color: #fff;
+    margin-top: 16px;
+  }
+
+  .cancel-btn {
+    background: #444;
+    color: #fff;
+    margin-top: 10px;
+    display: none;
+  }
+
+  .log-item {
+    border-bottom: 1px solid #333;
+    padding: 14px 0;
+  }
+
+  .log-item:last-child {
+    border-bottom: none;
+  }
+
+  .log-date {
+    font-size: 18px;
+    font-weight: 700;
+  }
+
+  .log-main {
+    margin-top: 6px;
+    font-size: 17px;
+  }
+
+  .log-sub {
+    color: #ddd;
+    margin-top: 4px;
+  }
+
+  .actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-top: 10px;
+  }
+
+  .edit-btn {
+    background: #ffd400;
+    color: #000;
+  }
+
+  .delete-btn {
+    background: #e60012;
+    color: #fff;
+  }
+
+  .chart-wrap {
+    margin-top: 10px;
+    margin-bottom: 18px;
+  }
+
+  .chart-title {
+    font-size: 18px;
+    font-weight: 700;
+    margin: 10px 0 8px;
+  }
+
+  canvas {
+    width: 100%;
+    background: #fff;
+    border-radius: 12px;
+    padding: 8px;
+  }
+
+  .empty {
+    color: #aaa;
+    text-align: center;
+    padding: 16px 0;
+  }
+</style>
+</head>
+
+<body>
+<div class="container">
+
+  <h1>筋トレログ</h1>
+
+  <div class="card">
+    <input type="hidden" id="editIndex" value="">
+
+    <label>日付</label>
+    <input type="date" id="date">
+
+    <label>時間</label>
+    <input type="time" id="time">
+
+    <label>今日の筋トレメイン部位</label>
+    <select id="part">
+      <option>胸</option>
+      <option>背中</option>
+      <option>脚</option>
+      <option>肩</option>
+      <option>腕</option>
+      <option>腹筋</option>
+      <option>全身</option>
+    </select>
+
+    <label>トレーニング名</label>
+    <input type="text" id="menu" placeholder="例：ベンチプレス / 背筋">
+
+    <div class="row">
+      <div>
+        <label>時間・回数・重さ</label>
+        <input type="text" id="count" placeholder="例：10回 / 80kg">
+      </div>
+      <div>
+        <label>セット数</label>
+        <input type="number" id="set" placeholder="例：5">
+      </div>
+    </div>
+
+    <div class="row">
+      <div>
+        <label>体重 kg</label>
+        <input type="number" id="weight" placeholder="例：80" step="0.1">
+      </div>
+      <div>
+        <label>体脂肪率 %</label>
+        <input type="number" id="fat" placeholder="例：10" step="0.1">
+      </div>
+    </div>
+
+    <button class="save-btn" onclick="saveLog()">保存</button>
+    <button class="cancel-btn" id="cancelBtn" onclick="cancelEdit()">編集をキャンセル</button>
+  </div>
+
+  <div class="card">
+    <h2>グラフ</h2>
+
+    <div class="chart-wrap">
+      <div class="chart-title">体重 kg</div>
+      <canvas id="weightChart" width="460" height="260"></canvas>
+    </div>
+
+    <div class="chart-wrap">
+      <div class="chart-title">体脂肪率 %</div>
+      <canvas id="fatChart" width="460" height="260"></canvas>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>履歴</h2>
+    <div id="log"></div>
+  </div>
+
+</div>
+
+<script>
+const STORAGE_KEY = "trainingLogs";
+
+function setDefaultDateTime() {
+  const now = new Date();
+  document.getElementById("date").value = now.toISOString().slice(0, 10);
+  document.getElementById("time").value = now.toTimeString().slice(0, 5);
+}
+
+function getLogs() {
+  const logs = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+
+  return logs.sort((a, b) => {
+    const dateA = new Date(a.date + " " + a.time);
+    const dateB = new Date(b.date + " " + b.time);
+    return dateB - dateA;
+  });
+}
+
+function setLogs(logs) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(logs));
+}
+
+function getFormData() {
+  return {
+    date: document.getElementById("date").value,
+    time: document.getElementById("time").value,
+    part: document.getElementById("part").value,
+    menu: document.getElementById("menu").value.trim(),
+    count: document.getElementById("count").value.trim(),
+    set: document.getElementById("set").value,
+    weight: document.getElementById("weight").value,
+    fat: document.getElementById("fat").value
+  };
+}
+
+function clearForm() {
+  document.getElementById("menu").value = "";
+  document.getElementById("count").value = "";
+  document.getElementById("set").value = "";
+  document.getElementById("weight").value = "";
+  document.getElementById("fat").value = "";
+  document.getElementById("editIndex").value = "";
+  document.getElementById("cancelBtn").style.display = "none";
+  document.querySelector(".save-btn").textContent = "保存";
+  setDefaultDateTime();
+}
+
+function saveLog() {
+  const data = getFormData();
+
+  if (!data.date || !data.time) {
+    alert("日付と時間を入れてください");
+    return;
+  }
+
+  const logs = getLogs();
+  const editIndex = document.getElementById("editIndex").value;
+
+  if (editIndex !== "") {
+    logs[Number(editIndex)] = data;
+  } else {
+    logs.unshift(data);
+  }
+
+  setLogs(logs);
+  clearForm();
+  render();
+}
+
+function editLog(index) {
+  const logs = getLogs();
+  const item = logs[index];
+
+  document.getElementById("date").value = item.date;
+  document.getElementById("time").value = item.time;
+  document.getElementById("part").value = item.part;
+  document.getElementById("menu").value = item.menu;
+  document.getElementById("count").value = item.count;
+  document.getElementById("set").value = item.set;
+  document.getElementById("weight").value = item.weight;
+  document.getElementById("fat").value = item.fat;
+  document.getElementById("editIndex").value = index;
+
+  document.querySelector(".save-btn").textContent = "編集を保存";
+  document.getElementById("cancelBtn").style.display = "block";
+
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function cancelEdit() {
+  clearForm();
+}
+
+function deleteLog(index) {
+  if (!confirm("この記録を削除しますか？")) return;
+
+  const logs = getLogs();
+  logs.splice(index, 1);
+  setLogs(logs);
+  render();
+}
+
+function renderLogs() {
+  const logs = getLogs();
+  const logDiv = document.getElementById("log");
+
+  if (logs.length === 0) {
+    logDiv.innerHTML = `<div class="empty">まだ記録がありません</div>`;
+    return;
+  }
+
+  logDiv.innerHTML = logs.map((item, index) => `
+    <div class="log-item">
+      <div class="log-date">${item.date} ${item.time}</div>
+      <div class="log-main">${item.part} - ${item.menu || "未入力"}</div>
+      <div class="log-sub">${item.count || "-"} × ${item.set || "-"}</div>
+      <div class="log-sub">体重: ${item.weight || "-"}kg / 体脂肪: ${item.fat || "-"}%</div>
+
+      <div class="actions">
+        <button class="edit-btn" onclick="editLog(${index})">編集</button>
+        <button class="delete-btn" onclick="deleteLog(${index})">削除</button>
+      </div>
+    </div>
+  `).join("");
+}
+
+function drawSingleChart(canvasId, key, color, unit, emptyText) {
+  const canvas = document.getElementById(canvasId);
+  const ctx = canvas.getContext("2d");
+
+  const logs = getLogs()
+    .filter(log => log[key])
+    .slice()
+    .reverse()
+    .slice(-10);
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  ctx.fillStyle = "#fff";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  ctx.fillStyle = "#000";
+  ctx.font = "14px sans-serif";
+
+  if (logs.length === 0) {
+    ctx.fillText(emptyText, 24, 130);
+    return;
+  }
+
+  const paddingLeft = 44;
+  const paddingRight = 22;
+  const paddingTop = 34;
+  const paddingBottom = 38;
+
+  const width = canvas.width - paddingLeft - paddingRight;
+  const height = canvas.height - paddingTop - paddingBottom;
+
+  const values = logs.map(log => Number(log[key]));
+  const min = Math.min(...values) - 1;
+  const max = Math.max(...values) + 1;
+
+  function getX(i) {
+    return paddingLeft + (width / Math.max(logs.length - 1, 1)) * i;
+  }
+
+  function getY(value) {
+    return paddingTop + height - ((value - min) / (max - min)) * height;
+  }
+
+  // 目盛り
+  ctx.fillStyle = "#555";
+  ctx.font = "11px sans-serif";
+
+  for (let i = 0; i <= 4; i++) {
+    const value = min + (max - min) * (i / 4);
+    const y = getY(value);
+
+    ctx.fillText(value.toFixed(1), 6, y + 4);
+
+    ctx.strokeStyle = "#eee";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(paddingLeft, y);
+    ctx.lineTo(paddingLeft + width, y);
+    ctx.stroke();
+  }
+
+  // 軸
+  ctx.strokeStyle = "#ccc";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(paddingLeft, paddingTop);
+  ctx.lineTo(paddingLeft, paddingTop + height);
+  ctx.lineTo(paddingLeft + width, paddingTop + height);
+  ctx.stroke();
+
+  // 線
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+
+  logs.forEach((log, i) => {
+    const x = getX(i);
+    const y = getY(Number(log[key]));
+
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  });
+
+  ctx.stroke();
+
+  // 点・数値・日付
+  logs.forEach((log, i) => {
+    const value = Number(log[key]);
+    const x = getX(i);
+    const y = getY(value);
+
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.arc(x, y, 5, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = "#000";
+    ctx.font = "bold 12px sans-serif";
+    ctx.fillText(`${value}${unit}`, x - 16, y - 10);
+
+    ctx.fillStyle = "#333";
+    ctx.font = "11px sans-serif";
+    ctx.fillText(log.date.slice(5), x - 16, canvas.height - 10);
+  });
+}
+
+function drawChart() {
+  drawSingleChart("weightChart", "weight", "#007bff", "kg", "体重を入力するとグラフが表示されます");
+  drawSingleChart("fatChart", "fat", "#e60012", "%", "体脂肪率を入力するとグラフが表示されます");
+}
+
+function render() {
+  renderLogs();
+  drawChart();
+}
+
+setDefaultDateTime();
+render();
+</script>
+
+</body>
+</html>
