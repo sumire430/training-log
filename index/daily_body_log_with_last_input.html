@@ -1,0 +1,879 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>日々の活動・体重ログ</title>
+
+<style>
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
+    background: #000;
+    color: #fff;
+  }
+
+  .container {
+    padding: 16px;
+    max-width: 560px;
+    margin: auto;
+    padding-bottom: 80px;
+  }
+
+  h1 {
+    text-align: center;
+    color: #ff1f1f;
+    margin: 16px 0 20px;
+    letter-spacing: 1px;
+    font-size: 26px;
+  }
+
+  h2 {
+    margin: 0 0 12px;
+    font-size: 20px;
+  }
+
+  .card {
+    background: #111;
+    border: 1px solid #333;
+    border-radius: 14px;
+    padding: 14px;
+    margin-bottom: 16px;
+  }
+
+  label {
+    display: block;
+    font-size: 13px;
+    color: #ccc;
+    margin-top: 10px;
+    margin-bottom: 4px;
+  }
+
+  input, select, textarea {
+    width: 100%;
+    padding: 13px;
+    border-radius: 10px;
+    border: none;
+    font-size: 16px;
+    background: #fff;
+    color: #000;
+    font-family: inherit;
+  }
+
+  textarea {
+    min-height: 82px;
+    resize: vertical;
+    line-height: 1.6;
+  }
+
+  .row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  .row-3 {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 10px;
+  }
+
+  @media (max-width: 420px) {
+    .row-3 { grid-template-columns: 1fr; }
+  }
+
+  .note {
+    color: #ccc;
+    font-size: 13px;
+    line-height: 1.6;
+    margin-top: 8px;
+  }
+
+  button {
+    width: 100%;
+    padding: 14px;
+    border: none;
+    border-radius: 12px;
+    font-size: 17px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+
+  .save-btn {
+    background: #007bff;
+    color: #fff;
+    margin-top: 16px;
+  }
+
+  .profile-btn {
+    background: #e60012;
+    color: #fff;
+    margin-top: 16px;
+  }
+
+  .cancel-btn {
+    background: #444;
+    color: #fff;
+    margin-top: 10px;
+    display: none;
+  }
+
+  .log-item {
+    border-bottom: 1px solid #333;
+    padding: 14px 0;
+  }
+
+  .log-item:last-child { border-bottom: none; }
+
+  .log-date {
+    font-size: 18px;
+    font-weight: 700;
+  }
+
+  .log-main {
+    margin-top: 6px;
+    font-size: 17px;
+    line-height: 1.5;
+  }
+
+  .log-sub {
+    color: #ddd;
+    margin-top: 4px;
+    line-height: 1.5;
+  }
+
+  .pill-wrap {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 8px;
+  }
+
+  .pill {
+    background: #222;
+    border: 1px solid #444;
+    border-radius: 999px;
+    padding: 5px 9px;
+    font-size: 13px;
+    color: #eee;
+  }
+
+  .actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-top: 10px;
+  }
+
+  .edit-btn {
+    background: #ffd400;
+    color: #000;
+  }
+
+  .delete-btn {
+    background: #e60012;
+    color: #fff;
+  }
+
+  .chart-wrap {
+    margin-top: 10px;
+    margin-bottom: 18px;
+  }
+
+  .chart-title {
+    font-size: 18px;
+    font-weight: 700;
+    margin: 10px 0 8px;
+  }
+
+  canvas {
+    width: 100%;
+    background: #fff;
+    border-radius: 12px;
+    padding: 8px;
+  }
+
+  .empty {
+    color: #aaa;
+    text-align: center;
+    padding: 16px 0;
+  }
+
+  .export-btn {
+    background: #ffd400;
+    color: #000;
+    margin-top: 10px;
+  }
+
+  .import-label {
+    display: block;
+    width: 100%;
+    text-align: center;
+    padding: 14px;
+    border-radius: 12px;
+    background: #007bff;
+    color: #fff;
+    font-size: 17px;
+    font-weight: 700;
+    margin-top: 10px;
+    cursor: pointer;
+  }
+
+  .backup-note {
+    color: #ccc;
+    font-size: 13px;
+    line-height: 1.6;
+    margin-top: 8px;
+  }
+</style>
+</head>
+
+<body>
+<div class="container">
+
+  <h1>日々の活動・体重ログ</h1>
+
+  <div class="card">
+    <h2>基本データ</h2>
+
+    <div class="row">
+      <div>
+        <label>生年月日</label>
+        <input type="date" id="birthDate">
+      </div>
+      <div>
+        <label>身長 cm</label>
+        <input type="number" id="height" placeholder="例：170" step="0.1" oninput="calculateAutoValues()">
+      </div>
+    </div>
+
+    <button class="profile-btn" onclick="saveProfile()">基本データを保存</button>
+    <div class="note" id="profileSummary">基本データはまだ保存されていません。</div>
+  </div>
+
+  <div class="card">
+    <h2>今日の記録</h2>
+    <input type="hidden" id="editIndex" value="">
+
+    <div class="row">
+      <div>
+        <label>日付</label>
+        <input type="date" id="date">
+      </div>
+      <div>
+        <label>時間</label>
+        <input type="time" id="time">
+      </div>
+    </div>
+
+    <label>朝メモ</label>
+    <textarea id="morningMemo" placeholder="例：寝起きは重い / 食欲あり / むくみあり"></textarea>
+
+    <div class="row">
+      <div>
+        <label>睡眠時間 h</label>
+        <input type="number" id="sleepHours" placeholder="例：7.5" step="0.1">
+      </div>
+      <div>
+        <label>活動レベル</label>
+        <select id="activityLevel" onchange="calculateAutoValues()">
+          <option value="">選択してください</option>
+          <option value="1.0">1.0 デスクワーク</option>
+          <option value="1.2">1.2 通常</option>
+          <option value="1.5">1.5 筋トレ</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="row-3">
+      <div>
+        <label>体重 kg</label>
+        <input type="number" id="weight" placeholder="例：80" step="0.1" oninput="calculateAutoValues()">
+      </div>
+      <div>
+        <label>体脂肪率 %</label>
+        <input type="number" id="fat" placeholder="例：15" step="0.1" oninput="calculateAutoValues()">
+      </div>
+      <div>
+        <label>ウエスト cm</label>
+        <input type="number" id="waist" placeholder="例：78" step="0.1">
+      </div>
+    </div>
+
+    <div class="row">
+      <div>
+        <label>基礎代謝 kcal（自動計算）</label>
+        <input type="number" id="bmr" placeholder="自動計算" step="1" readonly>
+      </div>
+      <div>
+        <label>目安水分量 ml（自動計算）</label>
+        <input type="number" id="water" placeholder="自動計算" step="1" readonly>
+      </div>
+    </div>
+
+    <div class="row">
+      <div>
+        <label>疲労度</label>
+        <select id="fatigue">
+          <option value="">選択してください</option>
+          <option value="1">1：かなり軽い</option>
+          <option value="2">2：軽い</option>
+          <option value="3">3：普通</option>
+          <option value="4">4：疲れている</option>
+          <option value="5">5：かなり疲れている</option>
+        </select>
+      </div>
+      <div>
+        <label>トレーニング部位</label>
+        <select id="trainingPart">
+          <option value="">選択してください</option>
+          <option value="1 胸">1 胸</option>
+          <option value="2 背中">2 背中</option>
+          <option value="3 肩">3 肩</option>
+          <option value="4 二頭筋">4 二頭筋</option>
+          <option value="5 三頭筋">5 三頭筋</option>
+          <option value="6 脚表">6 脚表</option>
+          <option value="7 脚裏">7 脚裏</option>
+          <option value="8 カーフ">8 カーフ</option>
+          <option value="9 腹筋">9 腹筋</option>
+          <option value="10 臀部">10 臀部</option>
+          <option value="11 前腕">11 前腕</option>
+          <option value="休み">休み</option>
+        </select>
+      </div>
+    </div>
+
+    <label>メモ</label>
+    <textarea id="memo" placeholder="例：胸トレの重量が上がった / 水分少なめ / 眠気あり"></textarea>
+
+    <button class="save-btn" onclick="saveLog()">保存</button>
+    <button class="cancel-btn" id="cancelBtn" onclick="cancelEdit()">編集をキャンセル</button>
+  </div>
+
+  <div class="card">
+    <h2>グラフ</h2>
+
+    <div class="chart-wrap">
+      <div class="chart-title">体重 kg</div>
+      <canvas id="weightChart" width="460" height="260"></canvas>
+    </div>
+
+    <div class="chart-wrap">
+      <div class="chart-title">体脂肪率 %</div>
+      <canvas id="fatChart" width="460" height="260"></canvas>
+    </div>
+
+    <div class="chart-wrap">
+      <div class="chart-title">ウエスト cm</div>
+      <canvas id="waistChart" width="460" height="260"></canvas>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>バックアップ</h2>
+    <button class="export-btn" onclick="exportCSV()">CSVを書き出す</button>
+
+    <label class="import-label">
+      CSVを読み込む
+      <input type="file" accept=".csv" onchange="importCSV(event)" hidden>
+    </label>
+
+    <div class="backup-note">
+      機種変更やデータ移行をしたいときは、CSVを書き出して保存してください。<br>
+      読み込むと、今ある履歴に追加されます。
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>履歴</h2>
+    <div id="log"></div>
+  </div>
+
+</div>
+
+<script>
+const LOG_STORAGE_KEY = "dailyBodyLogs";
+const PROFILE_STORAGE_KEY = "dailyBodyProfile";
+const LAST_INPUT_STORAGE_KEY = "dailyBodyLastInput";
+
+const CSV_HEADERS = [
+  "date", "time", "morningMemo", "sleepHours", "weight", "fat", "waist",
+  "activityLevel", "bmr", "water", "fatigue", "trainingPart", "memo"
+];
+
+const LAST_INPUT_FIELDS = [
+  "morningMemo", "sleepHours", "weight", "fat", "waist",
+  "activityLevel", "fatigue", "trainingPart", "memo"
+];
+
+function setDefaultDateTime() {
+  const now = new Date();
+  document.getElementById("date").value = now.toISOString().slice(0, 10);
+  document.getElementById("time").value = now.toTimeString().slice(0, 5);
+}
+
+function getProfile() {
+  return JSON.parse(localStorage.getItem(PROFILE_STORAGE_KEY)) || { birthDate: "", height: "" };
+}
+
+function saveProfile() {
+  const profile = {
+    birthDate: document.getElementById("birthDate").value,
+    height: document.getElementById("height").value
+  };
+
+  localStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(profile));
+  renderProfile();
+  calculateAutoValues();
+  alert("基本データを保存しました");
+}
+
+function renderProfile() {
+  const profile = getProfile();
+  document.getElementById("birthDate").value = profile.birthDate || "";
+  document.getElementById("height").value = profile.height || "";
+
+  const age = profile.birthDate ? calcAge(profile.birthDate) : "-";
+  document.getElementById("profileSummary").textContent =
+    `生年月日：${profile.birthDate || "未入力"} / 年齢：${age} / 身長：${profile.height || "未入力"}cm`;
+}
+
+function calcAge(birthDate) {
+  const today = new Date();
+  const birth = new Date(birthDate);
+  let age = today.getFullYear() - birth.getFullYear();
+  const monthDiff = today.getMonth() - birth.getMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) age--;
+  return age + "歳";
+}
+
+function getAgeNumber(birthDate) {
+  if (!birthDate) return 0;
+
+  const today = new Date();
+  const birth = new Date(birthDate);
+
+  let age = today.getFullYear() - birth.getFullYear();
+  const monthDiff = today.getMonth() - birth.getMonth();
+
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+    age--;
+  }
+
+  return age;
+}
+
+function calculateAutoValues() {
+  const profile = getProfile();
+
+  const birthDate = document.getElementById("birthDate").value || profile.birthDate;
+  const height = Number(document.getElementById("height").value || profile.height);
+  const weight = Number(document.getElementById("weight").value);
+  const fat = Number(document.getElementById("fat").value);
+  const activityLevel = Number(document.getElementById("activityLevel").value);
+
+  const bmrInput = document.getElementById("bmr");
+  const waterInput = document.getElementById("water");
+
+  const age = getAgeNumber(birthDate);
+
+  if (weight > 0) {
+    const water = weight * 40 + weight * 5;
+    waterInput.value = Math.round(water);
+  } else {
+    waterInput.value = "";
+  }
+
+  if (weight > 0 && fat >= 0 && height > 0 && age > 0 && activityLevel > 0) {
+    const leanBodyMass = weight - (weight * fat / 100);
+    const bmr = (13.4 * leanBodyMass + 4.8 * height - 5.68 * age + 88.4) * activityLevel;
+    bmrInput.value = Math.round(bmr);
+  } else {
+    bmrInput.value = "";
+  }
+}
+
+function getLogs() {
+  const logs = JSON.parse(localStorage.getItem(LOG_STORAGE_KEY)) || [];
+
+  return logs.sort((a, b) => {
+    const dateA = new Date(a.date + " " + a.time);
+    const dateB = new Date(b.date + " " + b.time);
+    return dateB - dateA;
+  });
+}
+
+function setLogs(logs) {
+  localStorage.setItem(LOG_STORAGE_KEY, JSON.stringify(logs));
+}
+
+function getLastInput() {
+  return JSON.parse(localStorage.getItem(LAST_INPUT_STORAGE_KEY)) || {};
+}
+
+function saveLastInput(data) {
+  const lastInput = {};
+
+  LAST_INPUT_FIELDS.forEach(key => {
+    lastInput[key] = data[key] || "";
+  });
+
+  localStorage.setItem(LAST_INPUT_STORAGE_KEY, JSON.stringify(lastInput));
+}
+
+function applyLastInput() {
+  const lastInput = getLastInput();
+
+  LAST_INPUT_FIELDS.forEach(id => {
+    const element = document.getElementById(id);
+    if (element) element.value = lastInput[id] || "";
+  });
+
+  calculateAutoValues();
+}
+
+function getFormData() {
+  return {
+    date: document.getElementById("date").value,
+    time: document.getElementById("time").value,
+    morningMemo: document.getElementById("morningMemo").value.trim(),
+    sleepHours: document.getElementById("sleepHours").value,
+    weight: document.getElementById("weight").value,
+    fat: document.getElementById("fat").value,
+    waist: document.getElementById("waist").value,
+    activityLevel: document.getElementById("activityLevel").value,
+    bmr: document.getElementById("bmr").value,
+    water: document.getElementById("water").value,
+    fatigue: document.getElementById("fatigue").value,
+    trainingPart: document.getElementById("trainingPart").value,
+    memo: document.getElementById("memo").value.trim()
+  };
+}
+
+function clearForm() {
+  document.getElementById("editIndex").value = "";
+  document.getElementById("cancelBtn").style.display = "none";
+  document.querySelector(".save-btn").textContent = "保存";
+
+  setDefaultDateTime();
+  applyLastInput();
+}
+
+function saveLog() {
+  const data = getFormData();
+
+  if (!data.date || !data.time) {
+    alert("日付と時間を入れてください");
+    return;
+  }
+
+  const logs = getLogs();
+  const editIndex = document.getElementById("editIndex").value;
+
+  if (editIndex !== "") {
+    logs[Number(editIndex)] = data;
+  } else {
+    logs.unshift(data);
+  }
+
+  setLogs(logs);
+  saveLastInput(data);
+  clearForm();
+  render();
+}
+
+function editLog(index) {
+  const logs = getLogs();
+  const item = logs[index];
+
+  CSV_HEADERS.forEach(key => {
+    if (document.getElementById(key)) {
+      document.getElementById(key).value = item[key] || "";
+    }
+  });
+
+  calculateAutoValues();
+
+  document.getElementById("editIndex").value = index;
+  document.querySelector(".save-btn").textContent = "編集を保存";
+  document.getElementById("cancelBtn").style.display = "block";
+
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function cancelEdit() {
+  clearForm();
+}
+
+function deleteLog(index) {
+  if (!confirm("この記録を削除しますか？")) return;
+
+  const logs = getLogs();
+  logs.splice(index, 1);
+  setLogs(logs);
+  render();
+}
+
+function renderLogs() {
+  const logs = getLogs();
+  const logDiv = document.getElementById("log");
+
+  if (logs.length === 0) {
+    logDiv.innerHTML = `<div class="empty">まだ記録がありません</div>`;
+    return;
+  }
+
+  logDiv.innerHTML = logs.map((item, index) => `
+    <div class="log-item">
+      <div class="log-date">${escapeHTML(item.date)} ${escapeHTML(item.time)}</div>
+      <div class="log-main">${escapeHTML(item.trainingPart || "トレーニング未入力")}</div>
+      <div class="pill-wrap">
+        <span class="pill">睡眠 ${escapeHTML(item.sleepHours || "-")}h</span>
+        <span class="pill">体重 ${escapeHTML(item.weight || "-")}kg</span>
+        <span class="pill">体脂肪 ${escapeHTML(item.fat || "-")}%</span>
+        <span class="pill">ウエスト ${escapeHTML(item.waist || "-")}cm</span>
+        <span class="pill">疲労度 ${escapeHTML(item.fatigue || "-")}</span>
+      </div>
+      <div class="log-sub">活動レベル: ${escapeHTML(item.activityLevel || "-")} / 基礎代謝: ${escapeHTML(item.bmr || "-")}kcal / 水分: ${escapeHTML(item.water || "-")}ml</div>
+      ${item.morningMemo ? `<div class="log-sub">朝メモ: ${escapeHTML(item.morningMemo)}</div>` : ""}
+      ${item.memo ? `<div class="log-sub">メモ: ${escapeHTML(item.memo)}</div>` : ""}
+
+      <div class="actions">
+        <button class="edit-btn" onclick="editLog(${index})">編集</button>
+        <button class="delete-btn" onclick="deleteLog(${index})">削除</button>
+      </div>
+    </div>
+  `).join("");
+}
+
+function escapeHTML(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;")
+    .replace(/\n/g, "<br>");
+}
+
+function drawSingleChart(canvasId, key, color, unit, emptyText) {
+  const canvas = document.getElementById(canvasId);
+  const ctx = canvas.getContext("2d");
+
+  const logs = getLogs()
+    .filter(log => log[key] !== "" && log[key] !== undefined && !isNaN(Number(log[key])))
+    .slice()
+    .reverse()
+    .slice(-10);
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = "#fff";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = "#000";
+  ctx.font = "14px sans-serif";
+
+  if (logs.length === 0) {
+    ctx.fillText(emptyText, 24, 130);
+    return;
+  }
+
+  const paddingLeft = 44;
+  const paddingRight = 22;
+  const paddingTop = 34;
+  const paddingBottom = 38;
+  const width = canvas.width - paddingLeft - paddingRight;
+  const height = canvas.height - paddingTop - paddingBottom;
+  const values = logs.map(log => Number(log[key]));
+  let min = Math.min(...values) - 1;
+  let max = Math.max(...values) + 1;
+  if (min === max) { min -= 1; max += 1; }
+
+  function getX(i) {
+    return paddingLeft + (width / Math.max(logs.length - 1, 1)) * i;
+  }
+
+  function getY(value) {
+    return paddingTop + height - ((value - min) / (max - min)) * height;
+  }
+
+  ctx.fillStyle = "#555";
+  ctx.font = "11px sans-serif";
+
+  for (let i = 0; i <= 4; i++) {
+    const value = min + (max - min) * (i / 4);
+    const y = getY(value);
+    ctx.fillText(value.toFixed(1), 6, y + 4);
+    ctx.strokeStyle = "#eee";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(paddingLeft, y);
+    ctx.lineTo(paddingLeft + width, y);
+    ctx.stroke();
+  }
+
+  ctx.strokeStyle = "#ccc";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(paddingLeft, paddingTop);
+  ctx.lineTo(paddingLeft, paddingTop + height);
+  ctx.lineTo(paddingLeft + width, paddingTop + height);
+  ctx.stroke();
+
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+
+  logs.forEach((log, i) => {
+    const x = getX(i);
+    const y = getY(Number(log[key]));
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  });
+  ctx.stroke();
+
+  logs.forEach((log, i) => {
+    const value = Number(log[key]);
+    const x = getX(i);
+    const y = getY(value);
+
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.arc(x, y, 5, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = "#000";
+    ctx.font = "bold 12px sans-serif";
+    ctx.fillText(`${value}${unit}`, x - 16, y - 10);
+
+    ctx.fillStyle = "#333";
+    ctx.font = "11px sans-serif";
+    ctx.fillText(log.date.slice(5), x - 16, canvas.height - 10);
+  });
+}
+
+function drawChart() {
+  drawSingleChart("weightChart", "weight", "#007bff", "kg", "体重を入力するとグラフが表示されます");
+  drawSingleChart("fatChart", "fat", "#e60012", "%", "体脂肪率を入力するとグラフが表示されます");
+  drawSingleChart("waistChart", "waist", "#ffd400", "cm", "ウエストを入力するとグラフが表示されます");
+}
+
+function escapeCSV(value) {
+  const str = String(value ?? "");
+  return `"${str.replace(/"/g, '""')}"`;
+}
+
+function exportCSV() {
+  const logs = getLogs();
+  if (logs.length === 0) {
+    alert("書き出す記録がありません");
+    return;
+  }
+
+  const rows = logs.map(log => CSV_HEADERS.map(key => escapeCSV(log[key])).join(","));
+  const csv = [CSV_HEADERS.join(","), ...rows].join("\n");
+
+  const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `daily-body-log-${new Date().toISOString().slice(0, 10)}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function parseCSVLine(line) {
+  const result = [];
+  let current = "";
+  let inQuotes = false;
+
+  for (let i = 0; i < line.length; i++) {
+    const char = line[i];
+    const next = line[i + 1];
+
+    if (char === '"' && inQuotes && next === '"') {
+      current += '"';
+      i++;
+    } else if (char === '"') {
+      inQuotes = !inQuotes;
+    } else if (char === "," && !inQuotes) {
+      result.push(current);
+      current = "";
+    } else {
+      current += char;
+    }
+  }
+  result.push(current);
+  return result;
+}
+
+function importCSV(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const text = e.target.result.replace(/^\uFEFF/, "");
+    const lines = text.split(/\r?\n/).filter(line => line.trim() !== "");
+
+    if (lines.length < 2) {
+      alert("読み込める記録がありません");
+      event.target.value = "";
+      return;
+    }
+
+    const headers = parseCSVLine(lines[0]).map(header => header.trim());
+    const isValid = ["date", "time"].every(header => headers.includes(header));
+
+    if (!isValid) {
+      alert("このCSVは日々の活動・体重ログ用の形式ではない可能性があります");
+      event.target.value = "";
+      return;
+    }
+
+    const importedLogs = lines.slice(1).map(line => {
+      const values = parseCSVLine(line);
+      const log = {};
+      headers.forEach((key, index) => {
+        log[key] = values[index] || "";
+      });
+
+      const normalized = {};
+      CSV_HEADERS.forEach(key => normalized[key] = log[key] || "");
+      return normalized;
+    }).filter(log => log.date && log.time);
+
+    if (importedLogs.length === 0) {
+      alert("読み込める記録がありません");
+      event.target.value = "";
+      return;
+    }
+
+    setLogs([...getLogs(), ...importedLogs]);
+    render();
+    alert(`${importedLogs.length}件の記録を読み込みました`);
+    event.target.value = "";
+  };
+
+  reader.readAsText(file, "UTF-8");
+}
+
+function render() {
+  renderProfile();
+  calculateAutoValues();
+  renderLogs();
+  drawChart();
+}
+
+setDefaultDateTime();
+renderProfile();
+applyLastInput();
+renderLogs();
+drawChart();
+</script>
+
+</body>
+</html>
